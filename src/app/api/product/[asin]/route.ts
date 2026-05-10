@@ -72,8 +72,8 @@ async function upsertProductCache(row: Record<string, unknown>) {
   } catch { /* ignore */ }
 }
 
-async function getHistoricData(asin: string): Promise<{ priceInr: number | null, oneStarPct: number | null }> {
-  if (isDummySupabase()) return { priceInr: null, oneStarPct: null };
+async function getHistoricData(asin: string): Promise<{ priceInr: number | null, oneStarPct: number | null, highInterest: boolean }> {
+  if (isDummySupabase()) return { priceInr: null, oneStarPct: null, highInterest: false };
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const sb = createClient(
@@ -81,20 +81,28 @@ async function getHistoricData(asin: string): Promise<{ priceInr: number | null,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false } }
     );
-    const { data } = await sb
-      .from("price_history")
-      .select("price_inr, one_star_pct")
-      .eq("asin", asin)
-      .lt("recorded_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .single();
+    
+    // Log search silently
+    sb.from("search_logs").insert({ asin }).then();
+
+    const [histRes, intRes] = await Promise.all([
+      sb.from("price_history")
+        .select("price_inr, one_star_pct")
+        .eq("asin", asin)
+        .lt("recorded_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .single(),
+      sb.rpc("is_high_market_interest", { target_asin: asin })
+    ]);
+
     return {
-      priceInr: data?.price_inr as number ?? null,
-      oneStarPct: data?.one_star_pct as number ?? null
+      priceInr: histRes.data?.price_inr as number ?? null,
+      oneStarPct: histRes.data?.one_star_pct as number ?? null,
+      highInterest: intRes.data as boolean ?? false
     };
   } catch {
-    return { priceInr: null, oneStarPct: null };
+    return { priceInr: null, oneStarPct: null, highInterest: false };
   }
 }
 
@@ -232,10 +240,12 @@ export async function GET(
       product_url: p.product_url ?? p.url,
       raw_availability: availText,
       one_star_pct: currentOneStarPct,
+      high_interest: dbHistory.highInterest,
       global_deals: global_deals,
       usd_rate: rates.usdToInr,
       eur_rate: rates.eurToInr,
       fetched_at: new Date().toISOString(),
+      raw_desc: p.about_product ?? p.product_description ?? null, // needed for TL;DR
     };
 
     // 3. Write-through cache upsert and history record (non-blocking)
