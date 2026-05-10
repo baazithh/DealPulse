@@ -9,7 +9,6 @@ import PricePillars from "@/components/PricePillars";
 import RelatedInsights from "@/components/RelatedInsights";
 import ArbitrageTable from "@/components/ArbitrageTable";
 import WatchlistInput from "@/components/WatchlistInput";
-import DataLineage from "@/components/DataLineage";
 import type { Signal } from "@/lib/decisionEngine";
 
 interface ProductData {
@@ -417,9 +416,6 @@ function DashboardContent() {
             )}
           </motion.div>
         )}
-
-        {/* Floating Dev Mode Lineage Toggle */}
-        <DataLineage />
       </main>
     </motion.div>
   );
