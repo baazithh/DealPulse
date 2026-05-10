@@ -7,6 +7,9 @@ import Image from "next/image";
 import SearchBar from "@/components/SearchBar";
 import PricePillars from "@/components/PricePillars";
 import RelatedInsights from "@/components/RelatedInsights";
+import ArbitrageTable from "@/components/ArbitrageTable";
+import WatchlistInput from "@/components/WatchlistInput";
+import DataLineage from "@/components/DataLineage";
 import type { Signal } from "@/lib/decisionEngine";
 
 interface ProductData {
@@ -21,7 +24,12 @@ interface ProductData {
   stock_pct: number;
   product_url: string;
   raw_availability: string;
-  inr_rate: number;
+  one_star_pct?: Pick<number, "valueOf"> | number;
+  global_deals?: { country: string; price_inr: number }[];
+  usd_rate: number;
+  eur_rate?: Pick<number, "valueOf"> | number;
+  fetched_at?: string;
+  inr_rate?: number; // legacy
   fromCache: boolean;
 }
 
@@ -377,6 +385,11 @@ function DashboardContent() {
                   </a>
                 )}
 
+                {/* Smart Alert / Watchlist */}
+                <div style={{ marginTop: 8 }}>
+                  <WatchlistInput asin={product.asin} currentPrice={product.price_inr} />
+                </div>
+
                 {/* Exchange rate footnote */}
                 <p
                   style={{
@@ -386,8 +399,13 @@ function DashboardContent() {
                     color: "#9CA3AF",
                   }}
                 >
-                  Prices converted at 1 USD = ₹{product.inr_rate?.toFixed(2)} (live rate)
+                  Rates: 1 USD = ₹{(product.usd_rate ?? product.inr_rate)?.toFixed(2)} | 1 EUR = ₹{(product.eur_rate as number ?? 90).toFixed(2)}
                 </p>
+
+                {/* Global Arbitrage */}
+                {product.global_deals && product.global_deals.length > 0 && (
+                   <ArbitrageTable localPrice={product.price_inr} globalDeals={product.global_deals} />
+                )}
               </div>
             </div>
 
@@ -399,6 +417,9 @@ function DashboardContent() {
             )}
           </motion.div>
         )}
+
+        {/* Floating Dev Mode Lineage Toggle */}
+        <DataLineage />
       </main>
     </motion.div>
   );

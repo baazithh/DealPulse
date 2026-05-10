@@ -5,13 +5,15 @@ import type { Signal } from "@/lib/decisionEngine";
 const LABELS: Record<Signal, string> = {
   buy: "BUY",
   monitor: "MONITOR",
-  avoid: "AVOID",
+  avoid: "AVOID (PRICE/STOCK)",
+  "avoid-quality": "QUALITY WARNING",
 };
 
 const DOT_COLORS: Record<Signal, string> = {
   buy: "#16A34A",
   monitor: "#D97706",
   avoid: "#DC2626",
+  "avoid-quality": "#EA580C", // Orange-red
 };
 
 export default function TrafficLight({ signal }: { signal: Signal }) {

@@ -50,9 +50,10 @@ html, body {
 }
 
 /* Traffic light badges */
-.badge-buy     { background: #DCFCE7; color: var(--buy);     border: 1px solid #BBF7D0; }
-.badge-monitor { background: #FEF3C7; color: var(--monitor); border: 1px solid #FDE68A; }
-.badge-avoid   { background: #FEE2E2; color: var(--avoid);   border: 1px solid #FECACA; }
+.badge-buy           { background: #DCFCE7; color: var(--buy);     border: 1px solid #BBF7D0; }
+.badge-monitor       { background: #FEF3C7; color: var(--monitor); border: 1px solid #FDE68A; }
+.badge-avoid         { background: #FEE2E2; color: var(--avoid);   border: 1px solid #FECACA; }
+.badge-avoid-quality { background: #FFEDD5; color: #EA580C;        border: 1px solid #FED7AA; }
 
 /* Amazon button */
 .btn-amazon {
