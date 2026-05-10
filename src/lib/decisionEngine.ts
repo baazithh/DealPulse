@@ -1,4 +1,4 @@
-export type Signal = "buy" | "monitor" | "avoid";
+export type Signal = "buy" | "monitor" | "avoid" | "avoid-quality";
 
 export interface EngineResult {
   tomorrowPrice: number;
@@ -12,15 +12,16 @@ export interface EngineResult {
  * Δ = 0.60 × priceChange24hFraction + 0.40 × stockVelocityFactor
  * Tomorrow = Today × (1 + Δ)
  *
- * Signal rules:
- *   BUY     — todayPrice < yesterdayPrice AND stockPct > 20
- *   AVOID   — todayPrice > yesterdayPrice OR stockPct < 5
- *   MONITOR — everything else
+ * Sentiment Override:
+ * If Price is decreasing but 1-star reviews have increased by >10%
+ * in the last 30 days, override "buy" to "avoid-quality".
  */
 export function runDecisionEngine(
   todayPrice: number,
   yesterdayPrice: number | null,
-  stockPct: number       // 0-100; use 50 as neutral if unknown
+  stockPct: number,         // 0-100; use 50 as neutral if unknown
+  currentOneStarPct: number = 0,
+  historicOneStarPct: number | null = null
 ): EngineResult {
   // ── Price trend (60 % weight) ──────────────────────────────────────────────
   let priceChange24h = 0;
@@ -41,7 +42,7 @@ export function runDecisionEngine(
   const delta = 0.6 * priceChange24h + 0.4 * stockVelocity;
   const tomorrowPrice = todayPrice * (1 + delta);
 
-  // ── Signal ────────────────────────────────────────────────────────────────
+  // ── Base Signal ───────────────────────────────────────────────────────────
   let signal: Signal = "monitor";
 
   if (yesterdayPrice !== null) {
@@ -54,6 +55,13 @@ export function runDecisionEngine(
       signal = "buy";
     } else if (priceUp || stockLow) {
       signal = "avoid";
+    }
+  }
+
+  // ── Sentiment Override ────────────────────────────────────────────────────
+  if (historicOneStarPct !== null && signal === "buy") {
+    if (currentOneStarPct - historicOneStarPct >= 10) {
+      signal = "avoid-quality";
     }
   }
 
