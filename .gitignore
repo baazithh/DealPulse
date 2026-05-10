@@ -1,5 +1,8 @@
+node_modules
+node_modules
+node_modules
 node_modules/
 .next/
 .env.local
-.vercel
-*.log
+dist/
+build/git add .

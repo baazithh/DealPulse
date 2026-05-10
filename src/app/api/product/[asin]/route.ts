@@ -16,51 +16,14 @@ function rapidFetch(path: string) {
 }
 
 // ── Extract yesterday's price from price-history response ─────────────────────
-function extractYesterdayUsd(
-  historyData: Record<string, unknown>
+// Since the free plan does not include the price-history endpoint,
+// we'll attempt to use the product_original_price (MRP/List price) or
+// rely entirely on our Supabase cache.
+function getOriginalUsd(
+  p: Record<string, unknown>
 ): number | null {
-  try {
-    // The API returns an array under data.price_history or data
-    const arr: unknown[] =
-      (historyData?.data as Record<string, unknown>)?.price_history as unknown[] ??
-      historyData?.price_history as unknown[] ??
-      [];
-
-    if (!Array.isArray(arr) || arr.length === 0) return null;
-
-    const now = Date.now();
-    const oneDayMs = 24 * 60 * 60 * 1000;
-
-    // Find the entry closest to 24 h ago (between 20h and 36h ago)
-    const candidates = arr.filter((entry) => {
-      const e = entry as Record<string, unknown>;
-      const ts = e.date ?? e.timestamp ?? e.time ?? e.datetime;
-      if (!ts) return false;
-      const diff = now - new Date(ts as string).getTime();
-      return diff >= oneDayMs * 0.8 && diff <= oneDayMs * 1.5;
-    });
-
-    // If nothing in that window, take the second-to-last entry
-    const target =
-      candidates.length > 0
-        ? candidates[candidates.length - 1]
-        : arr.length >= 2
-        ? arr[arr.length - 2]
-        : null;
-
-    if (!target) return null;
-
-    const e = target as Record<string, unknown>;
-    const raw =
-      e.price ??
-      e.product_price ??
-      e.value ??
-      (e.prices as Record<string, unknown>)?.[0];
-
-    return parseUsdString(String(raw));
-  } catch {
-    return null;
-  }
+  const raw = p.product_original_price ?? p.list_price ?? p.mrp;
+  return parseUsdString(String(raw));
 }
 
 // ── Supabase helpers (graceful no-op if credentials not set) ─────────────────
@@ -96,6 +59,40 @@ async function upsertProductCache(row: Record<string, unknown>) {
   } catch { /* ignore */ }
 }
 
+async function getYesterdayPrice(asin: string): Promise<number | null> {
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    const { data } = await sb
+      .from("price_history")
+      .select("price_inr")
+      .eq("asin", asin)
+      .lt("recorded_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .single();
+    return (data?.price_inr as number) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function upsertPriceHistory(asin: string, priceInr: number, stockPct: number) {
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const sb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    await sb.from("price_history").insert({ asin, price_inr: priceInr, stock_pct: stockPct });
+  } catch { /* ignore */ }
+}
+
 // ── Route handler ────────────────────────────────────────────────────────────
 export async function GET(
   _req: NextRequest,
@@ -110,12 +107,12 @@ export async function GET(
     return NextResponse.json({ ...cached, fromCache: true });
   }
 
-  // 2. Fetch product details + price history + exchange rate in parallel
+  // 2. Fetch product details + exchange rate in parallel
   try {
-    const [inrRate, detailRes, historyRes] = await Promise.all([
+    const [inrRate, detailRes, dbYesterdayInr] = await Promise.all([
       getUsdToInrRate(),
       rapidFetch(`/product-details?asin=${asin}&country=IN`),
-      rapidFetch(`/product-price-history?asin=${asin}&country=IN`),
+      getYesterdayPrice(asin),
     ]);
 
     if (!detailRes.ok) {
@@ -127,24 +124,23 @@ export async function GET(
     const detailData = await detailRes.json();
     const p = detailData?.data ?? detailData;
 
-    // ── Price history for Yesterday ───────────────────────────────────────────
-    let yesterdayPriceInr: number | null = null;
-    if (historyRes.ok) {
-      const historyData: Record<string, unknown> = await historyRes.json();
-      const yesterdayUsd = extractYesterdayUsd(historyData);
-      if (yesterdayUsd != null) {
-        yesterdayPriceInr = Math.round(yesterdayUsd * inrRate);
-        console.log(`[${asin}] Yesterday USD via API: $${yesterdayUsd} → ₹${yesterdayPriceInr}`);
-      } else {
-        console.log(`[${asin}] No yesterday price found in history response`);
+    // ── Current price ─────────────────────────────────────────────────────────
+    const rawPrice = parseUsdString(p.product_price ?? p.price?.value);
+    const isAlreadyInr = p.currency === "INR" || (p.product_price as string)?.includes("₹");
+    const priceInr = rawPrice != null ? (isAlreadyInr ? rawPrice : Math.round(rawPrice * inrRate)) : null;
+
+    // ── Yesterday Price ───────────────────────────────────────────────────────
+    // Prefer Supabase's historical price if it exists
+    let yesterdayPriceInr: number | null = dbYesterdayInr;
+    
+    // If no Supabase history, try to use the "Original Price" (MRP) from Amazon as a proxy
+    if (yesterdayPriceInr == null) {
+      const origUsd = getOriginalUsd(p);
+      if (origUsd != null) {
+         yesterdayPriceInr = isAlreadyInr ? origUsd : Math.round(origUsd * inrRate);
       }
-    } else {
-      console.warn(`[${asin}] price-history endpoint returned ${historyRes.status}`);
     }
 
-    // ── Current price ─────────────────────────────────────────────────────────
-    const usdPrice = parseUsdString(p.product_price ?? p.price?.value);
-    const priceInr = usdPrice != null ? Math.round(usdPrice * inrRate) : null;
 
     // ── Stock percentage ──────────────────────────────────────────────────────
     let stockPct = 50;
@@ -177,8 +173,11 @@ export async function GET(
       fetched_at: new Date().toISOString(),
     };
 
-    // 3. Write-through cache upsert (non-blocking)
-    upsertProductCache(row);
+    // 3. Write-through cache upsert and history record (non-blocking)
+    await Promise.all([
+      upsertProductCache(row),
+      priceInr != null ? upsertPriceHistory(asin, priceInr, stockPct) : Promise.resolve(),
+    ]);
 
     return NextResponse.json({ ...row, fromCache: false });
   } catch (err) {

@@ -33,8 +33,12 @@ export async function GET(req: NextRequest) {
     const data = await apiRes.json();
     const products = (data?.data?.products ?? []).slice(0, 12).map(
       (p: Record<string, unknown>) => {
-        const usdPrice = parseUsdString(p.product_price as string);
-        const inrPrice = usdPrice != null ? Math.round(usdPrice * inrRate) : null;
+        const rawPrice = parseUsdString(p.product_price as string);
+        
+        // If the API already returns INR (country=IN), don't convert again
+        const isAlreadyInr = p.currency === "INR" || (p.product_price as string)?.includes("₹");
+        const inrPrice = rawPrice != null ? (isAlreadyInr ? rawPrice : Math.round(rawPrice * inrRate)) : null;
+
         return {
           asin: p.asin,
           title: p.product_title,
