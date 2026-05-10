@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "DealPulse Stealth",
+  "version": "1.0",
+  "description": "Predictive E-Commerce Advisor injected directly into Amazon.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.amazon.com/*",
+    "*://*.amazon.in/*",
+    "*://*.amazon.de/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.amazon.com/*", "*://*.amazon.in/*", "*://*.amazon.de/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
