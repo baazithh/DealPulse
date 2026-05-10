@@ -27,7 +27,12 @@ function getOriginalUsd(
 }
 
 // ── Supabase helpers (graceful no-op if credentials not set) ─────────────────
+function isDummySupabase() {
+  return !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project");
+}
+
 async function getCachedProduct(asin: string) {
+  if (isDummySupabase()) return null;
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const sb = createClient(
@@ -48,6 +53,7 @@ async function getCachedProduct(asin: string) {
 }
 
 async function upsertProductCache(row: Record<string, unknown>) {
+  if (isDummySupabase()) return;
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const sb = createClient(
@@ -60,6 +66,7 @@ async function upsertProductCache(row: Record<string, unknown>) {
 }
 
 async function getYesterdayPrice(asin: string): Promise<number | null> {
+  if (isDummySupabase()) return null;
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const sb = createClient(
@@ -82,6 +89,7 @@ async function getYesterdayPrice(asin: string): Promise<number | null> {
 }
 
 async function upsertPriceHistory(asin: string, priceInr: number, stockPct: number) {
+  if (isDummySupabase()) return;
   try {
     const { createClient } = await import("@supabase/supabase-js");
     const sb = createClient(

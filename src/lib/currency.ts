@@ -13,10 +13,15 @@ export async function getUsdToInrRate(): Promise<number> {
   if (cachedRate && now - cacheTimestamp < CACHE_TTL_MS) return cachedRate;
 
   try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 1500);
+
     const res = await fetch(
       "https://open.er-api.com/v6/latest/USD",
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: controller.signal }
     );
+    clearTimeout(id);
+
     if (res.ok) {
       const data = await res.json();
       if (data?.rates?.INR) {
