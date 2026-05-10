@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg: #FBFBFD;
+  --text: #111827;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --buy: #16A34A;
+  --monitor: #D97706;
+  --avoid: #DC2626;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar hide for Related Insights rail */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Sharp 1px hairline borders – no shadows */
+.card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.card-bold {
+  border: 2px solid var(--text);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.card-dashed {
+  border: 1.5px dashed var(--text);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+/* Traffic light badges */
+.badge-buy     { background: #DCFCE7; color: var(--buy);     border: 1px solid #BBF7D0; }
+.badge-monitor { background: #FEF3C7; color: var(--monitor); border: 1px solid #FDE68A; }
+.badge-avoid   { background: #FEE2E2; color: var(--avoid);   border: 1px solid #FECACA; }
+
+/* Amazon button */
+.btn-amazon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+.btn-amazon:hover { opacity: 0.82; }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 4px;
+}
