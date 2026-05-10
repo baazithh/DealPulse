@@ -133,11 +133,14 @@ export default function LandingPage() {
             style={{
               position: "absolute",
               bottom: 32,
+              left: "50%",
+              transform: "translateX(-50%)",
               fontFamily: "Inter, sans-serif",
               fontSize: "0.75rem",
               color: "#9CA3AF",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
+              whiteSpace: "nowrap",
             }}
           >
             Prices shown in Indian Rupees (₹)
