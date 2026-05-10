@@ -27,10 +27,10 @@ function getOneStarPct(
   p: Record<string, unknown>
 ): number {
   if (!p.rating_distribution) return 0;
-  const dist = p.rating_distribution as Record<string, string>;
+  const dist = p.rating_distribution as Record<string, string | number>;
   const oneStar = dist["1"];
-  if (!oneStar) return 0;
-  return parseInt(oneStar.replace("%", ""), 10) || 0;
+  if (oneStar == null) return 0;
+  return parseInt(String(oneStar).replace("%", ""), 10) || 0;
 }
 
 // ── Supabase helpers ─────────────────────────────────────────────────────────
