@@ -64,7 +64,7 @@ export default function PriceArcheology({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart 
             data={data}
-            onMouseMove={(state) => {
+            onMouseMove={(state: any) => {
               if (state.isTooltipActive && state.activePayload?.length) {
                 onHover(state.activePayload[0].payload);
               }

@@ -9,7 +9,11 @@ import PricePillars from "@/components/PricePillars";
 import RelatedInsights from "@/components/RelatedInsights";
 import ArbitrageTable from "@/components/ArbitrageTable";
 import WatchlistInput from "@/components/WatchlistInput";
+import AITLDR from "@/components/AITLDR";
+import dynamic from "next/dynamic";
 import type { Signal } from "@/lib/decisionEngine";
+
+const PriceArcheology = dynamic(() => import("@/components/PriceArcheology"), { ssr: false });
 
 interface ProductData {
   asin: string;
@@ -29,6 +33,8 @@ interface ProductData {
   eur_rate?: Pick<number, "valueOf"> | number;
   fetched_at?: string;
   inr_rate?: number; // legacy
+  raw_desc?: any;
+  high_interest?: boolean;
   fromCache: boolean;
 }
 
@@ -123,11 +129,13 @@ function DashboardContent() {
   const [related, setRelated] = useState<RelatedProd[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hoverData, setHoverData] = useState<any>(null);
 
   const fetchProduct = useCallback(async (id: string) => {
     setLoading(true);
     setError(null);
     setProduct(null);
+    setHoverData(null);
 
     try {
       const res = await fetch(`/api/product/${id}`);
@@ -283,6 +291,17 @@ function DashboardContent() {
                   ))}
               </div>
 
+              {/* Archeology Chart and TLDR below image */}
+              <div style={{ width: 320, flexShrink: 0 }}>
+                {product.raw_desc && <AITLDR title={product.title} rawDesc={product.raw_desc} />}
+                <PriceArcheology 
+                  todayPrice={product.price_inr} 
+                  yesterdayPrice={product.yesterday_price_inr}
+                  stockPct={product.stock_pct}
+                  onHover={(data) => setHoverData(data)} 
+                />
+              </div>
+
               {/* Right column */}
               <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 20 }}>
                 {/* Product title */}
@@ -314,6 +333,11 @@ function DashboardContent() {
                     {product.fromCache && (
                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: "0.7rem", color: "#9CA3AF", border: "1px solid #E5E7EB", borderRadius: 10, padding: "2px 8px" }}>
                         Cached
+                      </span>
+                    )}
+                    {product.high_interest && (
+                       <span style={{ fontFamily: "Inter, sans-serif", fontSize: "0.7rem", color: "#D97706", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, padding: "2px 8px", fontWeight: "bold" }}>
+                        🔥 High Market Interest
                       </span>
                     )}
                   </div>
@@ -357,13 +381,14 @@ function DashboardContent() {
                   </span>
                 </div>
 
-                {/* Price Pillars */}
+                {/* Price Pillars (Dynamic mapping if hovered) */}
                 <PricePillars
-                  todayPrice={product.price_inr}
+                  todayPrice={hoverData ? hoverData.price : product.price_inr}
                   yesterdayPrice={product.yesterday_price_inr}
-                  tomorrowPrice={product.tomorrow_price_inr}
-                  delta={product.delta}
-                  signal={product.signal}
+                  tomorrowPrice={hoverData ? hoverData.tomorrowPrice : product.tomorrow_price_inr}
+                  delta={hoverData ? hoverData.delta : product.delta}
+                  signal={hoverData ? hoverData.signal : product.signal}
+                  simulatedDate={hoverData ? hoverData.date : null}
                 />
 
                 {/* VIEW ON AMAZON */}
